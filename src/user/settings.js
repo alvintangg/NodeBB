@@ -96,25 +96,20 @@ module.exports = function (User) {
 		return defaultValue;
 	}
 
+	async function validatePagination(value, maxValue) {
+		const parsed = parseInt(value, 10);
+		if (!value || parsed <= 1 || parsed > maxValue) {
+			throw new Error(`[[error:invalid-pagination-value, 2, ${maxValue}]]`);
+		}
+	}
+
 	User.saveSettings = async function (uid, data) {
 		const maxPostsPerPage = meta.config.maxPostsPerPage || 20;
-		if (
-			!data.postsPerPage ||
-			parseInt(data.postsPerPage, 10) <= 1 ||
-			parseInt(data.postsPerPage, 10) > maxPostsPerPage
-		) {
-			throw new Error(`[[error:invalid-pagination-value, 2, ${maxPostsPerPage}]]`);
-		}
-
 		const maxTopicsPerPage = meta.config.maxTopicsPerPage || 20;
-		if (
-			!data.topicsPerPage ||
-			parseInt(data.topicsPerPage, 10) <= 1 ||
-			parseInt(data.topicsPerPage, 10) > maxTopicsPerPage
-		) {
-			throw new Error(`[[error:invalid-pagination-value, 2, ${maxTopicsPerPage}]]`);
-		}
-
+	
+		await validatePagination(data.postsPerPage, maxPostsPerPage);
+		await validatePagination(data.topicsPerPage, maxTopicsPerPage);
+	
 		const languageCodes = await languages.listCodes();
 		if (data.userLang && !languageCodes.includes(data.userLang)) {
 			throw new Error('[[error:invalid-language]]');
@@ -123,9 +118,10 @@ module.exports = function (User) {
 			throw new Error('[[error:invalid-language]]');
 		}
 		data.userLang = data.userLang || meta.config.defaultLang;
-
-		plugins.hooks.fire('action:user.saveSettings', { uid: uid, settings: data });
-
+	
+		// Fire action hook before building final settings
+		plugins.hooks.fire('action:user.saveSettings', { uid, settings: data });
+	
 		const settings = {
 			showemail: data.showemail,
 			showfullname: data.showfullname,
@@ -149,17 +145,20 @@ module.exports = function (User) {
 			categoryTopicSort: data.categoryTopicSort,
 			topicPostSort: data.topicPostSort,
 		};
+	
 		const notificationTypes = await notifications.getAllNotificationTypes();
 		notificationTypes.forEach((notificationType) => {
 			if (data[notificationType]) {
 				settings[notificationType] = data[notificationType];
 			}
 		});
+	
 		const result = await plugins.hooks.fire('filter:user.saveSettings', { uid: uid, settings: settings, data: data });
 		await db.setObject(`user:${uid}:settings`, result.settings);
 		await User.updateDigestSetting(uid, data.dailyDigestFreq);
 		return await User.getSettings(uid);
 	};
+
 
 	User.updateDigestSetting = async function (uid, dailyDigestFreq) {
 		await db.sortedSetsRemove(['digest:day:uids', 'digest:week:uids', 'digest:month:uids'], uid);

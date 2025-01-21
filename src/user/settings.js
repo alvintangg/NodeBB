@@ -106,10 +106,10 @@ module.exports = function (User) {
 	User.saveSettings = async function (uid, data) {
 		const maxPostsPerPage = meta.config.maxPostsPerPage || 20;
 		const maxTopicsPerPage = meta.config.maxTopicsPerPage || 20;
-	
+
 		await validatePagination(data.postsPerPage, maxPostsPerPage);
 		await validatePagination(data.topicsPerPage, maxTopicsPerPage);
-	
+
 		const languageCodes = await languages.listCodes();
 		if (data.userLang && !languageCodes.includes(data.userLang)) {
 			throw new Error('[[error:invalid-language]]');
@@ -118,10 +118,10 @@ module.exports = function (User) {
 			throw new Error('[[error:invalid-language]]');
 		}
 		data.userLang = data.userLang || meta.config.defaultLang;
-	
+
 		// Fire action hook before building final settings
 		plugins.hooks.fire('action:user.saveSettings', { uid, settings: data });
-	
+
 		const settings = {
 			showemail: data.showemail,
 			showfullname: data.showfullname,
@@ -145,14 +145,14 @@ module.exports = function (User) {
 			categoryTopicSort: data.categoryTopicSort,
 			topicPostSort: data.topicPostSort,
 		};
-	
+
 		const notificationTypes = await notifications.getAllNotificationTypes();
 		notificationTypes.forEach((notificationType) => {
 			if (data[notificationType]) {
 				settings[notificationType] = data[notificationType];
 			}
 		});
-	
+
 		const result = await plugins.hooks.fire('filter:user.saveSettings', { uid: uid, settings: settings, data: data });
 		await db.setObject(`user:${uid}:settings`, result.settings);
 		await User.updateDigestSetting(uid, data.dailyDigestFreq);

@@ -118,6 +118,36 @@ module.exports = function (User) {
 		data.userLang = data.userLang || defaultLang;
 	}
 
+	function buildSettings(data, meta) {
+		const maxPostsPerPage = parseInt(meta.config.maxPostsPerPage || 20, 10);
+		const maxTopicsPerPage = parseInt(meta.config.maxTopicsPerPage || 20, 10);
+
+		return {
+			showemail: data.showemail,
+			showfullname: data.showfullname,
+			openOutgoingLinksInNewTab: data.openOutgoingLinksInNewTab,
+			dailyDigestFreq: data.dailyDigestFreq || 'off',
+			usePagination: data.usePagination,
+			topicsPerPage: Math.min(data.topicsPerPage, maxTopicsPerPage),
+			postsPerPage: Math.min(data.postsPerPage, maxPostsPerPage),
+			userLang: data.userLang || meta.config.defaultLang,
+			acpLang: data.acpLang || meta.config.defaultLang,
+			followTopicsOnCreate: data.followTopicsOnCreate,
+			followTopicsOnReply: data.followTopicsOnReply,
+			restrictChat: data.restrictChat,
+			topicSearchEnabled: data.topicSearchEnabled,
+			updateUrlWithPostIndex: data.updateUrlWithPostIndex,
+			homePageRoute: ((data.homePageRoute === 'custom' ? data.homePageCustom : data.homePageRoute) || '')
+				.replace(/^\//, ''),
+			scrollToMyPost: data.scrollToMyPost,
+			upvoteNotifFreq: data.upvoteNotifFreq,
+			bootswatchSkin: data.bootswatchSkin,
+			categoryWatchState: data.categoryWatchState,
+			categoryTopicSort: data.categoryTopicSort,
+			topicPostSort: data.topicPostSort,
+		};
+	}
+
 	User.saveSettings = async function (uid, data) {
 		const maxPostsPerPage = meta.config.maxPostsPerPage || 20;
 		const maxTopicsPerPage = meta.config.maxTopicsPerPage || 20;
@@ -130,29 +160,7 @@ module.exports = function (User) {
 		// Fire action hook before building final settings
 		plugins.hooks.fire('action:user.saveSettings', { uid, settings: data });
 
-		const settings = {
-			showemail: data.showemail,
-			showfullname: data.showfullname,
-			openOutgoingLinksInNewTab: data.openOutgoingLinksInNewTab,
-			dailyDigestFreq: data.dailyDigestFreq || 'off',
-			usePagination: data.usePagination,
-			topicsPerPage: Math.min(data.topicsPerPage, parseInt(maxTopicsPerPage, 10) || 20),
-			postsPerPage: Math.min(data.postsPerPage, parseInt(maxPostsPerPage, 10) || 20),
-			userLang: data.userLang || meta.config.defaultLang,
-			acpLang: data.acpLang || meta.config.defaultLang,
-			followTopicsOnCreate: data.followTopicsOnCreate,
-			followTopicsOnReply: data.followTopicsOnReply,
-			restrictChat: data.restrictChat,
-			topicSearchEnabled: data.topicSearchEnabled,
-			updateUrlWithPostIndex: data.updateUrlWithPostIndex,
-			homePageRoute: ((data.homePageRoute === 'custom' ? data.homePageCustom : data.homePageRoute) || '').replace(/^\//, ''),
-			scrollToMyPost: data.scrollToMyPost,
-			upvoteNotifFreq: data.upvoteNotifFreq,
-			bootswatchSkin: data.bootswatchSkin,
-			categoryWatchState: data.categoryWatchState,
-			categoryTopicSort: data.categoryTopicSort,
-			topicPostSort: data.topicPostSort,
-		};
+		const settings = buildSettings(data, meta);
 
 		const notificationTypes = await notifications.getAllNotificationTypes();
 		notificationTypes.forEach((notificationType) => {

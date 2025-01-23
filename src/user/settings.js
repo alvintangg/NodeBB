@@ -96,11 +96,26 @@ module.exports = function (User) {
 		return defaultValue;
 	}
 
+	// Refactored using chatgpt
 	async function validatePagination(value, maxValue) {
 		const parsed = parseInt(value, 10);
 		if (!value || parsed <= 1 || parsed > maxValue) {
 			throw new Error(`[[error:invalid-pagination-value, 2, ${maxValue}]]`);
 		}
+	}
+
+	async function validateLanguages(data, defaultLang) {
+		const languageCodes = await languages.listCodes();
+
+		if (data.userLang && !languageCodes.includes(data.userLang)) {
+			throw new Error('[[error:invalid-language]]');
+		}
+		if (data.acpLang && !languageCodes.includes(data.acpLang)) {
+			throw new Error('[[error:invalid-language]]');
+		}
+
+		// Fall back to default language if none specified
+		data.userLang = data.userLang || defaultLang;
 	}
 
 	User.saveSettings = async function (uid, data) {
@@ -110,14 +125,7 @@ module.exports = function (User) {
 		await validatePagination(data.postsPerPage, maxPostsPerPage);
 		await validatePagination(data.topicsPerPage, maxTopicsPerPage);
 
-		const languageCodes = await languages.listCodes();
-		if (data.userLang && !languageCodes.includes(data.userLang)) {
-			throw new Error('[[error:invalid-language]]');
-		}
-		if (data.acpLang && !languageCodes.includes(data.acpLang)) {
-			throw new Error('[[error:invalid-language]]');
-		}
-		data.userLang = data.userLang || meta.config.defaultLang;
+		await validateLanguages(data, meta.config.defaultLang);
 
 		// Fire action hook before building final settings
 		plugins.hooks.fire('action:user.saveSettings', { uid, settings: data });
